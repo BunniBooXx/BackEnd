@@ -1,14 +1,16 @@
 from . import auth_blueprint as auth
 from flask_jwt_extended import create_access_token
-from flask import request, make_response, jsonify
-from ..models import User
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import request, make_response, jsonify 
+from flask_cors import cross_origin
+import requests
+from ..models import User, db
 from datetime import timedelta 
 from flask_login import login_required
 
-
 @auth.route('/tts', methods=['POST'])
 def tts():
-    text = request.json.get('text')
+    text = request.json.get('text')  # Corrected from requests.json to request.json
     api_key = 'AIzaSyBVN5qq-8-eXcPjn7_nqWYdZPrpjDHCric'
     url = f'https://texttospeech.googleapis.com/v1/text:synthesize?key=AIzaSyBVN5qq-8-eXcPjn7_nqWYdZPrpjDHCric'
 
@@ -18,13 +20,14 @@ def tts():
         'audioConfig': {'audioEncoding': 'LINEAR16'}
     }
     
-    response = request.post(url, json=payload)
+    response = requests.post(url, json=payload)
 
     if response.status_code == 200:
         audio_content = response.json().get('audioContent')
         return jsonify({'audioContent': audio_content})
 
     return jsonify({'error': 'Text-to-Speech conversion failed'}), 500
+
 
 
 @login_required
@@ -106,6 +109,7 @@ def handle_login():
         response = {
             "message": "password is required"
         }
+        return response, 400
 
     user = User.query.filter_by(username=username).one_or_none()
     if user is None: 
@@ -130,3 +134,78 @@ def handle_login():
     response.headers["Authorization"] = f"Bearer {auth_token}"
     return response , 200
     
+
+
+
+@auth.put('/update_user/<int:user_id>')
+@jwt_required()  # Requires a valid JWT token
+def update_user(user_id):
+    current_user_id = get_jwt_identity()
+
+    # Check if the user is trying to update their own profile
+    if current_user_id != user_id:
+        response = {"message": "Unauthorized: You can only update your own profile"}
+        return response, 401
+
+    body = request.json
+
+    username = body.get("username")
+    password = body.get("password")
+
+    # Get the user by ID
+    user = User.query.get(user_id)
+
+    if not user:
+        response = {"message": "User not found"}
+        return response, 404
+
+    # Update user information
+    if username:
+        user.username = username
+    if password:
+        user.password = password
+
+    db.session.commit()
+
+    response = {"message": "User updated", "data": user.to_response()}
+    return response, 200
+
+# Delete user
+@auth.delete('/delete_user/<int:user_id>')
+def delete_user(user_id):
+    # Get the user by ID
+    user = User.query.get(user_id)
+
+    if not user:
+        response = {"message": "User not found"}
+        return response, 404
+
+    # Delete user
+    db.session.delete(user)
+    db.session.commit()
+
+    response = {"message": "User deleted"}
+    return response, 200
+
+
+@auth.route('/get_user_data', methods=['GET', 'OPTIONS'])
+@jwt_required()
+@cross_origin()
+def get_user_data():
+    try:
+        # Get the current user ID from the JWT token
+        current_user_id = get_jwt_identity()
+
+        # Query the database to get user data based on the current user ID
+        user_data = {
+            "id": current_user_id,
+            "username": "example_username",
+            # Add other fields as needed
+        }
+
+        return jsonify(user_data), 200
+
+    except Exception as e:
+        print(f"Error getting user data: {str(e)}")
+        response = {"message": "Error getting user data"}
+        return jsonify(response), 500
