@@ -4,9 +4,6 @@ class Config:
     FLASK_APP = os.environ.get("FLASK_APP")
     FLASK_DEBUG = os.environ.get("FLASK_DEBUG")
     SQLALCHEMY_DATABASE_URI= os.environ.get("DATABASE_URL")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False \
+    SQLALCHEMY_TRACK_MODIFICATIONS = False 
     
-
-     # FLASK JWT EXTENDED
-    JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY")
-    JWT_TOKEN_LOCATION=[os.environ.get("JWT_TOKEN_LOCATION")]
+    SECRET_KEY = os.environ.get("SECRET_KEY")

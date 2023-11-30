@@ -5,7 +5,8 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app, origins='http://localhost:3000', supports_credentials=True)
+#CORS(app, origins='http://localhost:3000', supports_credentials=True)
+CORS(app)
 from .models import db, User
 db.init_app(app)
 
@@ -17,9 +18,10 @@ from flask_jwt_extended import JWTManager
 
 jwt = JWTManager(app)
 
+
 @jwt.user_identity_loader
 def user_identity_lookup(user):
-    return user
+    return user.id
 
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
@@ -29,5 +31,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 from .auth import auth_blueprint
 
 app.register_blueprint(auth_blueprint)
+
+
 
 
